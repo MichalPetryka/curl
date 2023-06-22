@@ -95,22 +95,21 @@ static ParameterError varfunc(struct GlobalConfig *global,
                               char *c, /* content */
                               size_t clen, /* content length */
                               char *f, /* functions */
+                              size_t flen, /* function string length */
                               struct curlx_dynbuf *out)
 {
   bool alloc = FALSE;
   ParameterError err = PARAM_OK;
+  const char *finput = f;
 
   /* The functions are independent and runs left to right */
   while(*f && !err) {
     if(*f == '}')
       /* end of functions */
       break;
-    else if(*f != ':') {
-      /* bad syntax */
-      errorf(global, "variable function syntax error");
-      err = PARAM_EXPAND_ERROR;
-      break;
-    }
+    /* On entry, this is known to be a colon already.  In subsequent laps, it
+       is also known to be a colon since that is part of the FUNCMATCH()
+       checks */
     f++;
     if(FUNCMATCH(f, FUNC_TRIM, FUNC_TRIM_LEN)) {
       size_t len = clen;
@@ -161,7 +160,8 @@ static ParameterError varfunc(struct GlobalConfig *global,
     }
     else {
       /* unsupported function */
-      errorf(global, "unsupported variable function");
+      errorf(global, "unknown variable function in '%.*s'",
+             (int)flen, finput);
       err = PARAM_EXPAND_ERROR;
       break;
     }
@@ -190,6 +190,7 @@ ParameterError varexpand(struct GlobalConfig *global,
   CURLcode result;
   char *envp;
   bool added = FALSE;
+  const char *input = line;
   *replaced = FALSE;
   curlx_dyn_init(out, MAX_EXPAND_CONTENT);
   do {
@@ -218,7 +219,7 @@ ParameterError varexpand(struct GlobalConfig *global,
 
       if(!clp) {
         /* uneven braces */
-        warnf(global, "missing close '}}' in expansion");
+        warnf(global, "missing close '}}' in '%s'", input);
         break;
       }
 
@@ -232,7 +233,7 @@ ParameterError varexpand(struct GlobalConfig *global,
       else
         nlen = clp - envp;
       if(!nlen || (nlen >= sizeof(name))) {
-        warnf(global, "bad variable name length");
+        warnf(global, "bad variable name length '%s'", input);
         /* insert the text as-is since this is not an env variable */
         result = curlx_dyn_addn(out, line, clp - line + prefix);
         if(result)
@@ -252,7 +253,7 @@ ParameterError varexpand(struct GlobalConfig *global,
         for(i = 0; (i < nlen) &&
               (ISALNUM(name[i]) || (name[i] == '_')); i++);
         if(i != nlen) {
-          warnf(global, "weird-looking variable name");
+          warnf(global, "bad variable name: %s", name);
           /* insert the text as-is since this is not an env variable */
           result = curlx_dyn_addn(out, envp - prefix,
                                   clp - envp + prefix + 2);
@@ -274,7 +275,9 @@ ParameterError varexpand(struct GlobalConfig *global,
           curlx_dyn_init(&buf, MAX_EXPAND_CONTENT);
           if(funcp) {
             /* apply the list of functions on the value */
-            ParameterError err = varfunc(global, value, vlen, funcp, &buf);
+            size_t flen = clp - funcp;
+            ParameterError err = varfunc(global, value, vlen, funcp, flen,
+                                         &buf);
             if(err)
               return err;
             value = curlx_dyn_ptr(&buf);
@@ -377,7 +380,7 @@ ParameterError setvariable(struct GlobalConfig *global,
     line++;
   nlen = line - name;
   if(!nlen || (nlen > 128)) {
-    warnf(global, "Bad name length, skipping");
+    warnf(global, "Bad variable name length (%zd), skipping", nlen);
     return PARAM_OK;
   }
   if(import) {
