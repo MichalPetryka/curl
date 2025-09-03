@@ -70,14 +70,10 @@
 #  include <openssl/md5.h>
 #  include <openssl/ssl.h>
 #  include <openssl/rand.h>
-#  ifdef OPENSSL_IS_AWSLC
+#  ifdef OPENSSL_IS_AWSLC  /* for versions 1.2.0 to 1.30.1 */
 #    define DES_set_key_unchecked (void)DES_set_key
-#    define DESKEYARG(x) *x
-#    define DESKEY(x) &x
-#  else
-#    define DESKEYARG(x) *x
-#    define DESKEY(x) &x
 #  endif
+#  define DESKEY(x) &x
 #else
 #  include <wolfssl/openssl/des.h>
 #  include <wolfssl/openssl/md5.h>
@@ -91,12 +87,11 @@
 #    define DES_set_key_unchecked wolfSSL_DES_set_key_unchecked
 #    define DES_ecb_encrypt wolfSSL_DES_ecb_encrypt
 #    define DESKEY(x) ((WOLFSSL_DES_key_schedule *)(x))
-#    define DESKEYARG(x) *x
 #  else
-#    define DESKEYARG(x) *x
 #    define DESKEY(x) &x
 #  endif
 #endif
+#define DESKEYARG(x) *x
 
 #elif defined(USE_GNUTLS)
 
@@ -404,7 +399,7 @@ CURLcode Curl_ntlm_core_mk_nt_hash(const char *password,
   size_t len = strlen(password);
   unsigned char *pw;
   CURLcode result;
-  if(len > SIZE_T_MAX/2) /* avoid integer overflow */
+  if(len > SIZE_MAX/2) /* avoid integer overflow */
     return CURLE_OUT_OF_MEMORY;
   pw = len ? malloc(len * 2) : (unsigned char *)strdup("");
   if(!pw)

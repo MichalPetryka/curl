@@ -472,7 +472,8 @@ static SANITIZEcode rename_if_reserved_dos(char **const sanitized,
 
   /* Rename reserved device names that are known to be accessible without \\.\
      Examples: CON => _CON, CON.EXT => CON_EXT, CON:ADS => CON_ADS
-     https://support.microsoft.com/en-us/kb/74496
+     https://web.archive.org/web/20160314141551/
+       support.microsoft.com/en-us/kb/74496
      https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
      */
   for(p = fname; p; p = (p == fname && fname != base ? base : NULL)) {
@@ -765,7 +766,7 @@ static DWORD WINAPI win_stdin_thread_func(void *thread_data)
   int clientAddrLen = sizeof(clientAddr);
 
   curl_socket_t socket_w = accept(tdata->socket_l, (SOCKADDR*)&clientAddr,
-                           &clientAddrLen);
+                                  &clientAddrLen);
 
   if(socket_w == CURL_SOCKET_BAD) {
     errorf("accept error: %08lx", GetLastError());
@@ -919,11 +920,11 @@ curl_socket_t win32_stdin_read_thread(void)
   if(rc != 1) {
     if(socket_r != CURL_SOCKET_BAD && tdata) {
       if(GetStdHandle(STD_INPUT_HANDLE) == (HANDLE)socket_r &&
-        tdata->stdin_handle) {
-          /* restore STDIN */
-          SetStdHandle(STD_INPUT_HANDLE, tdata->stdin_handle);
-          tdata->stdin_handle = NULL;
-        }
+         tdata->stdin_handle) {
+        /* restore STDIN */
+        SetStdHandle(STD_INPUT_HANDLE, tdata->stdin_handle);
+        tdata->stdin_handle = NULL;
+      }
 
       sclose(socket_r);
       socket_r = CURL_SOCKET_BAD;

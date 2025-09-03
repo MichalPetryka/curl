@@ -124,17 +124,21 @@ static CURLcode glob_set(struct URLGlob *glob, const char **patternp,
       /* add 1 to size since it will be incremented below */
       if(multiply(amount, pat->c.set.size + 1))
         return globerror(glob, "range overflow", 0, CURLE_URL_MALFORMAT);
-
+      done = TRUE;
       FALLTHROUGH();
     case ',':
       if(pat->c.set.elem) {
-        char **new_arr = realloc(pat->c.set.elem,
-                                 (size_t)(pat->c.set.size + 1) *
-                                 sizeof(char *));
-        if(!new_arr)
+        char **arr;
+
+        if(pat->c.set.size >= (curl_off_t)(SIZE_MAX/(sizeof(char *))))
+          return globerror(glob, "range overflow", 0, CURLE_URL_MALFORMAT);
+
+        arr = realloc(pat->c.set.elem, (size_t)(pat->c.set.size + 1) *
+                      sizeof(char *));
+        if(!arr)
           return globerror(glob, NULL, 0, CURLE_OUT_OF_MEMORY);
 
-        pat->c.set.elem = new_arr;
+        pat->c.set.elem = arr;
       }
       else
         pat->c.set.elem = malloc(sizeof(char *));
@@ -142,20 +146,16 @@ static CURLcode glob_set(struct URLGlob *glob, const char **patternp,
       if(!pat->c.set.elem)
         return globerror(glob, NULL, 0, CURLE_OUT_OF_MEMORY);
 
-      pat->c.set.elem[pat->c.set.size] = strdup(curlx_dyn_ptr(&glob->buf));
+      pat->c.set.elem[pat->c.set.size] = strdup(curlx_dyn_ptr(&glob->buf) ?
+                                                curlx_dyn_ptr(&glob->buf): "");
       if(!pat->c.set.elem[pat->c.set.size])
         return globerror(glob, NULL, 0, CURLE_OUT_OF_MEMORY);
       ++pat->c.set.size;
       curlx_dyn_reset(&glob->buf);
 
-      if(*pattern == '}') {
-        pattern++; /* pass the closing brace */
-        done = TRUE;
-        continue;
-      }
-
       ++pattern;
-      ++(*posp);
+      if(!done)
+        ++(*posp);
       break;
 
     case ']':                           /* illegal closing bracket */
@@ -423,10 +423,13 @@ static CURLcode glob_parse(struct URLGlob *glob, const char *pattern,
     if(++glob->size >= glob->palloc) {
       struct URLPattern *np = NULL;
       glob->palloc *= 2;
-      if(glob->size < 10000) /* avoid ridiculous amounts */
+      if(glob->size < 255) { /* avoid ridiculous amounts */
         np = realloc(glob->pattern, glob->palloc * sizeof(struct URLPattern));
-      if(!np)
-        return globerror(glob, NULL, pos, CURLE_OUT_OF_MEMORY);
+        if(!np)
+          return globerror(glob, NULL, pos, CURLE_OUT_OF_MEMORY);
+      }
+      else
+        return globerror(glob, "too many {} sets", pos, CURLE_URL_MALFORMAT);
       glob->pattern = np;
     }
   }

@@ -385,7 +385,7 @@
  * performing this task will result in a synthesized IPv6 address.
  */
 #if defined(__APPLE__) && !defined(USE_ARES)
-#define USE_RESOLVE_ON_IPS 1
+#  define USE_RESOLVE_ON_IPS 1
 #  if TARGET_OS_MAC && !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) && \
      defined(USE_IPV6)
 #    define CURL_MACOS_CALL_COPYPROXIES 1
@@ -473,6 +473,10 @@
 
 #ifndef STDC_HEADERS /* no standard C headers! */
 #include <curl/stdcheaders.h>
+#endif
+
+#if defined(HAVE_STDINT_H) || defined(USE_WOLFSSL)
+#include <stdint.h>
 #endif
 
 #ifdef _WIN32
@@ -618,21 +622,21 @@
 #  endif
 #endif
 
-#ifndef SIZE_T_MAX
+#ifndef SIZE_MAX
 /* some limits.h headers have this defined, some do not */
 #if defined(SIZEOF_SIZE_T) && (SIZEOF_SIZE_T > 4)
-#define SIZE_T_MAX 18446744073709551615U
+#define SIZE_MAX 18446744073709551615U
 #else
-#define SIZE_T_MAX 4294967295U
+#define SIZE_MAX 4294967295U
 #endif
 #endif
 
-#ifndef SSIZE_T_MAX
+#ifndef SSIZE_MAX
 /* some limits.h headers have this defined, some do not */
 #if defined(SIZEOF_SIZE_T) && (SIZEOF_SIZE_T > 4)
-#define SSIZE_T_MAX 9223372036854775807
+#define SSIZE_MAX 9223372036854775807
 #else
-#define SSIZE_T_MAX 2147483647
+#define SSIZE_MAX 2147483647
 #endif
 #endif
 

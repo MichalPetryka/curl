@@ -320,7 +320,6 @@ CURLcode Curl_close(struct Curl_easy **datap)
   Curl_safefree(data->state.aptr.uagent);
   Curl_safefree(data->state.aptr.userpwd);
   Curl_safefree(data->state.aptr.accept_encoding);
-  Curl_safefree(data->state.aptr.te);
   Curl_safefree(data->state.aptr.rangeline);
   Curl_safefree(data->state.aptr.ref);
   Curl_safefree(data->state.aptr.host);
@@ -3225,7 +3224,7 @@ static CURLcode resolve_unix(struct Curl_easy *data,
 
   /* Unix domain sockets are local. The host gets ignored, just use the
    * specified domain socket address. Do not cache "DNS entries". There is
-   * no DNS involved and we already have the filesystem path available. */
+   * no DNS involved and we already have the file system path available. */
   hostaddr = calloc(1, sizeof(struct Curl_dns_entry));
   if(!hostaddr)
     return CURLE_OUT_OF_MEMORY;
