@@ -196,6 +196,9 @@ void Curl_async_shutdown(struct Curl_easy *data)
 #ifdef CURLRES_ARES
   Curl_async_ares_shutdown(data);
 #endif
+#ifdef CURLRES_WIN32
+  Curl_async_win32_shutdown(data);
+#endif
 #ifdef CURLRES_THREADED
   Curl_async_thrdd_shutdown(data);
 #endif
@@ -209,6 +212,9 @@ void Curl_async_destroy(struct Curl_easy *data)
 {
 #ifdef CURLRES_ARES
   Curl_async_ares_destroy(data);
+#endif
+#ifdef CURLRES_WIN32
+  Curl_async_win32_shutdown(data);
 #endif
 #ifdef CURLRES_THREADED
   Curl_async_thrdd_destroy(data);

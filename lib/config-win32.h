@@ -397,19 +397,22 @@
 /* ---------------------------------------------------------------- */
 
 /*
- * Undefine both USE_ARES and USE_THREADS_WIN32 for synchronous DNS.
+ * Undefine USE_ARES, USE_WIN32_DNS and USE_THREADS_WIN32 for synchronous DNS.
  */
 
 /* Define to enable c-ares asynchronous DNS lookups. */
 /* #define USE_ARES 1 */
 
+/* Define to enable WIN32 asynchronous DNS lookups. */
+/* #define USE_WIN32_DNS 1 */
+
 /* Default define to enable threaded asynchronous DNS lookups. */
 #if !defined(USE_SYNC_DNS) && !defined(USE_ARES) && \
-    !defined(USE_THREADS_WIN32)
+    !defined(USE_WIN32_DNS) && !defined(USE_THREADS_WIN32)
 #  define USE_THREADS_WIN32 1
 #endif
 
-#if defined(USE_ARES) && defined(USE_THREADS_WIN32)
+#if defined(USE_ARES) && defined(USE_THREADS_WIN32) && defined(USE_WIN32_DNS)
 #  error "Only one DNS lookup specialty may be defined at most"
 #endif
 

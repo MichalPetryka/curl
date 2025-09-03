@@ -56,6 +56,10 @@ struct Curl_https_rrinfo {
   BIT(no_def_alpn); /* keytag = 2 */
 };
 
+CURLcode Curl_httpsrr_decode_alpn(const char* cp, size_t len,
+                                  unsigned char* alpns);
+
+
 CURLcode Curl_httpsrr_set(struct Curl_easy *data,
                           struct Curl_https_rrinfo *hi,
                           uint16_t rrkey, const uint8_t *val, size_t vlen);

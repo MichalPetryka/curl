@@ -36,15 +36,53 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
+#if !defined(HAVE_IF_NAMETOINDEX) || defined(CURLRES_WIN32)
+#define NEEDS_LOADING
+#endif
+
+#ifdef NEEDS_LOADING
+/* This is used to dynamically load DLLs */
+static HMODULE curl_load_library(LPCTSTR filename);
+
+#ifdef UNDER_CE
+#define CURL_TEXT(n) TEXT(n)
+#else
+#define CURL_TEXT(n) (n)
+#endif
+#endif
+
 #ifndef HAVE_IF_NAMETOINDEX
 /* Handle of iphlpapp.dll */
 static HMODULE s_hIpHlpApiDll = NULL;
 
 /* Pointer to the if_nametoindex function */
 IF_NAMETOINDEX_FN Curl_if_nametoindex = NULL;
+#endif
 
-/* This is used to dynamically load DLLs */
-static HMODULE curl_load_library(LPCTSTR filename);
+#ifdef CURLRES_WIN32
+/* Handle of Ws2_32.dll */
+static HMODULE s_hWs2_32 = NULL;
+
+/* Handle of Dnsapi.dll */
+static HMODULE s_hDnsapi = NULL;
+
+/* Handle of API-MS-Win-Core-Synch-l1-2-0.dll */
+static HMODULE s_hApiMsWinCoreSynchl120 = NULL;
+
+/* Pointer to the if_nametoindex function */
+GETADDRINFOEXCANCEL_FN Curl_GetAddrInfoExCancel = NULL;
+
+/* Pointer to the if_nametoindex function */
+WAITONADDRESS_FN Curl_WaitOnAddress = NULL;
+
+/* Pointer to the if_nametoindex function */
+WAKEBYADDRESSALL_FN Curl_WakeByAddressAll = NULL;
+
+/* Pointer to the if_nametoindex function */
+DNSQUERYEX_FN Curl_DnsQueryEx = NULL;
+
+/* Pointer to the if_nametoindex function */
+DNSCANCELQUERY_FN Curl_DnsCancelQuery = NULL;
 #endif
 
 /* Curl_win32_init() performs Win32 global initialization */
@@ -99,11 +137,6 @@ CURLcode Curl_win32_init(long flags)
   s_hIpHlpApiDll = curl_load_library(TEXT("iphlpapi.dll"));
   if(s_hIpHlpApiDll) {
     /* Get the address of the if_nametoindex function */
-#ifdef UNDER_CE
-    #define CURL_TEXT(n) TEXT(n)
-#else
-    #define CURL_TEXT(n) (n)
-#endif
     IF_NAMETOINDEX_FN pIfNameToIndex =
       CURLX_FUNCTION_CAST(IF_NAMETOINDEX_FN,
                           (GetProcAddress(s_hIpHlpApiDll,
@@ -111,6 +144,42 @@ CURLcode Curl_win32_init(long flags)
 
     if(pIfNameToIndex)
       Curl_if_nametoindex = pIfNameToIndex;
+  }
+#endif
+
+#ifdef CURLRES_WIN32
+  s_hWs2_32 = curl_load_library(TEXT("Ws2_32.dll"));
+  if (s_hWs2_32) {
+    Curl_GetAddrInfoExCancel =
+      CURLX_FUNCTION_CAST(GETADDRINFOEXCANCEL_FN,
+        (GetProcAddress(s_hWs2_32,
+          CURL_TEXT("GetAddrInfoExCancel"))));
+  }
+
+  s_hDnsapi = curl_load_library(TEXT("Dnsapi.dll"));
+  if (s_hDnsapi) {
+    Curl_DnsQueryEx =
+      CURLX_FUNCTION_CAST(DNSQUERYEX_FN,
+        (GetProcAddress(s_hDnsapi,
+          CURL_TEXT("DnsQueryEx"))));
+
+    Curl_DnsCancelQuery =
+      CURLX_FUNCTION_CAST(DNSCANCELQUERY_FN,
+        (GetProcAddress(s_hDnsapi,
+          CURL_TEXT("DnsCancelQuery"))));
+  }
+
+  s_hApiMsWinCoreSynchl120 = curl_load_library(TEXT("API-MS-Win-Core-Synch-l1-2-0.dll"));
+  if (s_hApiMsWinCoreSynchl120) {
+    Curl_WakeByAddressAll =
+      CURLX_FUNCTION_CAST(WAKEBYADDRESSALL_FN,
+        (GetProcAddress(s_hApiMsWinCoreSynchl120,
+          CURL_TEXT("WakeByAddressAll"))));
+
+    Curl_WaitOnAddress =
+      CURLX_FUNCTION_CAST(WAITONADDRESS_FN,
+        (GetProcAddress(s_hApiMsWinCoreSynchl120,
+          CURL_TEXT("WaitOnAddress"))));
   }
 #endif
 
@@ -138,6 +207,29 @@ void Curl_win32_cleanup(long init_flags)
   }
 #endif
 
+#ifdef CURLRES_WIN32
+  Curl_GetAddrInfoExCancel = NULL;
+  Curl_DnsQueryEx = NULL;
+  Curl_DnsCancelQuery = NULL;
+  Curl_WakeByAddressAll = NULL;
+  Curl_WaitOnAddress = NULL;
+
+  if (s_hWs2_32) {
+    FreeLibrary(s_hWs2_32);
+    s_hWs2_32 = NULL;
+  }
+
+  if (s_hDnsapi) {
+    FreeLibrary(s_hDnsapi);
+    s_hDnsapi = NULL;
+  }
+
+  if (s_hApiMsWinCoreSynchl120) {
+    FreeLibrary(s_hApiMsWinCoreSynchl120);
+    s_hApiMsWinCoreSynchl120 = NULL;
+  }
+#endif
+
 #ifdef USE_WINDOWS_SSPI
   Curl_sspi_global_cleanup();
 #endif
@@ -149,7 +241,7 @@ void Curl_win32_cleanup(long init_flags)
   }
 }
 
-#ifndef HAVE_IF_NAMETOINDEX
+#ifdef NEEDS_LOADING
 
 #ifndef LOAD_WITH_ALTERED_SEARCH_PATH
 #define LOAD_WITH_ALTERED_SEARCH_PATH  0x00000008

@@ -39,15 +39,38 @@ struct hostent;
 struct connectdata;
 struct easy_pollset;
 
-#if defined(CURLRES_ARES) && defined(CURLRES_THREADED)
-#error cannot have both CURLRES_ARES and CURLRES_THREADED defined
+#if defined(CURLRES_ARES)
+#if defined(HAS_ASYNCH_BACKEND)
+#error cannot have multiple asynch backends defined
 #endif
+#define HAS_ASYNCH_BACKEND
+#endif
+
+#if defined(CURLRES_WIN32)
+#if defined(HAS_ASYNCH_BACKEND)
+#error cannot have multiple asynch backends defined
+#endif
+#define HAS_ASYNCH_BACKEND
+#endif
+
+#if defined(CURLRES_THREADED)
+#if defined(HAS_ASYNCH_BACKEND)
+#error cannot have multiple asynch backends defined
+#endif
+#define HAS_ASYNCH_BACKEND
+#endif
+
+#if !defined(HAS_ASYNCH_BACKEND)
+#error CURLRES_ASYNCH defined with no asynch backend
+#endif
+
+#undef HAS_ASYNCH_BACKEND
 
 /*
  * This header defines all functions in the internal asynch resolver interface.
  * All asynch resolvers need to provide these functions.
- * asyn-ares.c and asyn-thread.c are the current implementations of asynch
- * resolver backends.
+ * asyn-ares.c, asyn-win32.c and asyn-thread.c are the current implementations
+ * of asynch resolver backends.
  */
 
 /*
@@ -220,6 +243,65 @@ void Curl_async_thrdd_destroy(struct Curl_easy *data);
 
 #endif /* CURLRES_THREADED */
 
+#ifdef CURLRES_WIN32
+/* async resolving implementation using Win32 APIs */
+
+/* Context for win32 requests */
+struct async_win32_request_ctx {
+  OVERLAPPED overlapped;
+  HANDLE cancel_handle;
+  volatile unsigned char wait_handle;
+  struct Curl_addrinfo* res;
+  wchar_t* hostname;
+  wchar_t port[_MAX_ITOSTR_BASE10_COUNT];
+  int sock_error;
+#ifdef USE_CURL_COND_T
+  curl_cond_t  cond;
+#endif
+#ifndef CURL_DISABLE_SOCKETPAIR
+  curl_socket_t sock_pair[2]; /* eventfd/pipes/socket pair */
+#endif
+  union
+  {
+    ADDRINFOEXW basic;
+    ADDRINFOEX6 extended;
+  } hints;
+  ADDRINFO_DNS_SERVER* servers;
+  struct timeval timeout;
+  struct curltime start;
+  timediff_t interval_end;
+  unsigned int poll_interval;
+#ifdef USE_HTTPSRR
+  struct
+  {
+    volatile unsigned char wait_handle;
+    struct Curl_https_rrinfo res;
+    union {
+      DNS_QUERY_REQUEST basic;
+      DNS_QUERY_REQUEST3 extended;
+    } request;
+    DNS_CUSTOM_SERVER* servers;
+    DNS_QUERY_RESULT result;
+    DNS_QUERY_CANCEL cancel_handle;
+  } httpsrr;
+#endif
+};
+
+/* Context for win32 resolver */
+struct async_win32_ctx {
+  struct async_win32_request_ctx request;
+  DWORD server_cnt;
+  SOCKADDR_INET* servers;
+};
+
+void Curl_async_win32_shutdown(struct Curl_easy* data);
+void Curl_async_win32_destroy(struct Curl_easy* data);
+
+/* Set the DNS server to use, from `data` settings. */
+CURLcode Curl_async_win32_set_dns_servers(struct Curl_easy* data);
+
+#endif /* CURLRES_WIN32 */
+
 #ifndef CURL_DISABLE_DOH
 struct doh_probes;
 #endif
@@ -243,6 +325,8 @@ struct doh_probes;
 struct Curl_async {
 #ifdef CURLRES_ARES
   struct async_ares_ctx ares;
+#elif defined(CURLRES_WIN32) 
+  struct async_win32_ctx win32;
 #elif defined(CURLRES_THREADED)
   struct async_thrdd_ctx thrdd;
 #endif

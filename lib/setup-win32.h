@@ -82,6 +82,7 @@
 #  include <windows.h>
 #  include <winerror.h>
 #  include <tchar.h>
+#  include <windns.h>
 #endif
 
 /*

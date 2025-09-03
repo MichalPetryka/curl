@@ -140,6 +140,7 @@ LIB_CFILES =         \
   asyn-ares.c        \
   asyn-base.c        \
   asyn-thrdd.c       \
+  asyn-win.c         \
   bufq.c             \
   bufref.c           \
   cf-h1-proxy.c      \

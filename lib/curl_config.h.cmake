@@ -670,6 +670,9 @@ ${SIZEOF_TIME_T_CODE}
 /* Define if you want to enable Win32 threaded DNS lookup */
 #cmakedefine USE_THREADS_WIN32 1
 
+/* Define if you want to enable Win32 async DNS lookup */
+#cmakedefine USE_WIN32_DNS 1
+
 /* if GnuTLS is enabled */
 #cmakedefine USE_GNUTLS 1
 

@@ -2442,13 +2442,19 @@ static CURLcode setopt_cptr(struct Curl_easy *data, CURLoption option,
     break;
 #endif
 #endif
-#ifdef CURLRES_ARES
+#if defined(CURLRES_WIN32)
   case CURLOPT_DNS_SERVERS:
     result = Curl_setstropt(&s->str[STRING_DNS_SERVERS], ptr);
     if(result)
       return result;
+    return Curl_async_win32_set_dns_servers(data);
+#endif
+#ifdef CURLRES_ARES
+  case CURLOPT_DNS_SERVERS:
+    result = Curl_setstropt(&s->str[STRING_DNS_SERVERS], ptr);
+    if (result)
+      return result;
     return Curl_async_ares_set_dns_servers(data);
-
   case CURLOPT_DNS_INTERFACE:
     result = Curl_setstropt(&s->str[STRING_DNS_INTERFACE], ptr);
     if(result)

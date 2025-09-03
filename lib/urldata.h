@@ -1299,8 +1299,10 @@ enum dupstring {
   STRING_HSTS,                  /* CURLOPT_HSTS */
 #endif
   STRING_SASL_AUTHZID,          /* CURLOPT_SASL_AUTHZID */
-#ifdef USE_ARES
+#if defined(USE_ARES) || defined(USE_WIN32_DNS)
   STRING_DNS_SERVERS,
+#endif
+#ifdef USE_ARES
   STRING_DNS_INTERFACE,
   STRING_DNS_LOCAL_IP4,
   STRING_DNS_LOCAL_IP6,

@@ -689,7 +689,7 @@
  * Mutually exclusive CURLRES_* definitions.
  */
 
-#if defined(USE_IPV6) && defined(HAVE_GETADDRINFO)
+#if defined(USE_IPV6) && (defined(HAVE_GETADDRINFO) || defined(USE_WIN32_DNS))
 #  define CURLRES_IPV6
 #elif defined(USE_IPV6) && (defined(_WIN32) || defined(__CYGWIN__))
 /* assume on Windows that IPv6 without getaddrinfo is a broken build */
@@ -698,7 +698,10 @@
 #  define CURLRES_IPV4
 #endif
 
-#if defined(USE_THREADS_POSIX) || defined(USE_THREADS_WIN32)
+#if defined(USE_WIN32_DNS)
+#  define CURLRES_ASYNCH
+#  define CURLRES_WIN32
+#elif defined(USE_THREADS_POSIX) || defined(USE_THREADS_WIN32)
 #  define CURLRES_ASYNCH
 #  define CURLRES_THREADED
 #elif defined(USE_ARES)
