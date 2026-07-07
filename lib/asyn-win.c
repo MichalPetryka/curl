@@ -22,7 +22,7 @@
  *
  ***************************************************************************/
 
-// Win32 async DNS requires UNICODE
+ // Win32 async DNS requires UNICODE
 #ifndef UNICODE
 #define UNICODE
 #endif
@@ -50,7 +50,7 @@
 #include "select.h"
 #include "strdup.h"
 
-/* The last 3 #include files should be in this order */
+ /* The last 3 #include files should be in this order */
 #include "connect.h"
 #include "curl_printf.h"
 #include "curl_memory.h"
@@ -109,7 +109,7 @@ void Curl_async_global_cleanup(void)
   /* No cleanup needed */
 }
 
-CURLcode Curl_async_get_impl(struct Curl_easy *data, void **impl)
+CURLcode Curl_async_get_impl(struct Curl_easy* data, void** impl)
 {
   (void)data;
   *impl = NULL;
@@ -142,7 +142,7 @@ void async_win32_release(volatile unsigned char* handle, unsigned char status)
 
   *handle = status;
 
-  if (!wakebyaddressall){
+  if (!wakebyaddressall) {
     DEBUGASSERT(!async_win32_supports_async);
     return;
   }
@@ -156,9 +156,9 @@ void async_win32_release(volatile unsigned char* handle, unsigned char status)
  * For builds without ARES, but with USE_IPV6, create a resolver thread
  * and wait on it.
  */
-static CURL_THREAD_RETURN_T CURL_STDCALL getaddrinfo_thread(void *arg)
+static CURL_THREAD_RETURN_T CURL_STDCALL getaddrinfo_thread(void* arg)
 {
-  struct async_win32_request_ctx *addr_ctx = arg;
+  struct async_win32_request_ctx* addr_ctx = arg;
   int rc;
 
   {
@@ -167,12 +167,12 @@ static CURL_THREAD_RETURN_T CURL_STDCALL getaddrinfo_thread(void *arg)
     msnprintf(service, sizeof(service), "%d", addr_ctx->port);
 
     rc = Curl_getaddrinfo_ex(addr_ctx->hostname, service,
-                             &addr_ctx->hints, &addr_ctx->res);
+      &addr_ctx->hints, &addr_ctx->res);
   }
 
-  if(rc) {
+  if (rc) {
     addr_ctx->sock_error = SOCKERRNO ? SOCKERRNO : rc;
-    if(!addr_ctx->sock_error)
+    if (!addr_ctx->sock_error)
       addr_ctx->sock_error = RESOLVER_ENOMEM;
   }
   else {
@@ -224,26 +224,22 @@ async_win32_request_init(struct Curl_easy* data, const char* hostname, int port,
 /*
  * async_win32_destroy() cleans up async resolver data and thread handle.
  */
-static void async_win32_destroy(struct Curl_easy *data)
+static void async_win32_destroy(struct Curl_easy* data)
 {
-  struct async_win32_ctx *win32 = &data->state.async.win32;
-  struct async_win32_request_ctx *addr = win32->addr;
+  struct async_win32_ctx* win32 = &data->state.async.win32;
+  struct async_win32_request_ctx* addr = win32->addr;
 
 #ifdef USE_HTTPSRR_ARES
-  if(win32->rr.channel) {
-    ares_destroy(win32->rr.channel);
-    win32->rr.channel = NULL;
-  }
   Curl_httpsrr_cleanup(&win32->rr.hinfo);
 #endif
 
-  if(win32->addr && win32->addr->thread_hnd != curl_thread_t_null) {
+  if (win32->addr && win32->addr->thread_hnd != curl_thread_t_null) {
     bool done = TRUE;
 
     Curl_mutex_acquire(&addr->mutx);
     done = addr->ref_count <= 1;
     Curl_mutex_release(&addr->mutx);
-    if(done) {
+    if (done) {
       Curl_thread_join(&addr->thread_hnd);
       CURL_TRC_DNS(data, "async_win32_destroy, thread joined");
     }
@@ -336,25 +332,25 @@ static bool async_win32_httpsrr_parse(struct async_win32_request_ctx* addr_ctx, 
 
   }
 
-  if(!query_results->pQueryRecords) {
-      return FALSE;
+  if (!query_results->pQueryRecords) {
+    return FALSE;
   }
 
-  for(record = query_results->pQueryRecords; record != NULL; record = record->pNext) {
+  for (record = query_results->pQueryRecords; record != NULL; record = record->pNext) {
     size_t i;
     const char* target;
 
-    if(record->Flags.S.Section != DnsSectionAnswer) {
+    if (record->Flags.S.Section != DnsSectionAnswer) {
       continue;
     }
-    if(record->wType != DNS_TYPE_HTTPS) {
+    if (record->wType != DNS_TYPE_HTTPS) {
       continue;
     }
 
     target = record->Data.SVCB.pszTargetName;
-    if(target && target[0]) {
+    if (target && target[0]) {
       addr_ctx->httpsrr.res.target = strdup(target);
-      if(!addr_ctx->httpsrr.res.target) {
+      if (!addr_ctx->httpsrr.res.target) {
         result = CURLE_OUT_OF_MEMORY;
         goto out;
       }
@@ -364,7 +360,7 @@ static bool async_win32_httpsrr_parse(struct async_win32_request_ctx* addr_ctx, 
     addr_ctx->httpsrr.res.priority = record->Data.SVCB.wSvcPriority;
     CURL_TRC_DNS(data, "HTTPS RR priority: %u", addr_ctx->httpsrr.res.priority);
 
-    for(i = 0; i < record->Data.SVCB.cSvcParams; i++) {
+    for (i = 0; i < record->Data.SVCB.cSvcParams; i++) {
       async_win32_httpsrr_parse_parameter(&addr_ctx->httpsrr.res, &record->Data.SVCB.pSvcParams[i]);
     }
   }
@@ -389,13 +385,13 @@ static bool async_win32_httpsrr_query(struct Curl_easy* data)
 
   status = Curl_DnsQueryEx(&addr_ctx->httpsrr.request.basic, &addr_ctx->httpsrr.result, &addr_ctx->httpsrr.cancel_handle);
 
-  if(status == DNS_REQUEST_PENDING)
+  if (status == DNS_REQUEST_PENDING)
   {
     CURL_TRC_DNS(data, "issued HTTPS-RR request for %s", data->conn->host.name);
     return TRUE;
   }
 
-  if(status != ERROR_SUCCESS)
+  if (status != ERROR_SUCCESS)
   {
     return FALSE;
   }
@@ -433,7 +429,7 @@ static CURLcode async_win32_httpsrr_setup_ctx(struct Curl_easy* data)
       extended->pCustomServers[i].ServerAddr = win32->servers[i];
     }
   }
-    
+
   win32->request.httpsrr.result.Version = DNS_QUERY_RESULTS_VERSION1;
 }
 #endif
@@ -450,7 +446,7 @@ static void async_win32_cancel(struct async_win32_request_ctx* ctx)
   async_win32_httpsrr_cancel(ctx);
 }
 
-struct Curl_addrinfo *async_win32_parse_addrinfo(PADDRINFOEXW addrinfo)
+struct Curl_addrinfo* async_win32_parse_addrinfo(PADDRINFOEXW addrinfo)
 {
   PADDRINFOEXW ai;
   struct Curl_addrinfo* cafirst = NULL;
@@ -460,15 +456,15 @@ struct Curl_addrinfo *async_win32_parse_addrinfo(PADDRINFOEXW addrinfo)
   char* canonname = NULL;
 
   /* traverse the addrinfo list */
-  for(ai = addrinfo; ai != NULL; ai = ai->ai_next) {
+  for (ai = addrinfo; ai != NULL; ai = ai->ai_next) {
     size_t namelen;
 
-    if(canonname) {
+    if (canonname) {
       curlx_unicodefree(canonname);
     }
 
     canonname = curlx_convert_wchar_to_UTF8(ai->ai_canonname);
-    if(!canonname && ai->ai_canonname) {
+    if (!canonname && ai->ai_canonname) {
       Curl_freeaddrinfo(cafirst);
       cafirst = NULL;
       break;
@@ -476,26 +472,26 @@ struct Curl_addrinfo *async_win32_parse_addrinfo(PADDRINFOEXW addrinfo)
 
     /* ignore elements with unsupported address family, */
     /* settle family-specific sockaddr structure size.  */
-    if(ai->ai_family == AF_INET)
+    if (ai->ai_family == AF_INET)
       ss_size = sizeof(struct sockaddr_in);
 #ifdef USE_IPV6
-    else if(ai->ai_family == AF_INET6)
+    else if (ai->ai_family == AF_INET6)
       ss_size = sizeof(struct sockaddr_in6);
 #endif
     else
       continue;
 
     /* ignore elements without required address info */
-    if(!ai->ai_addr || ai->ai_addrlen <= 0)
+    if (!ai->ai_addr || ai->ai_addrlen <= 0)
       continue;
 
     /* ignore elements with bogus address size */
-    if(ai->ai_addrlen < ss_size)
+    if (ai->ai_addrlen < ss_size)
       continue;
 
     namelen = canonname ? strlen(canonname) + 1 : 0;
     ca = malloc(sizeof(struct Curl_addrinfo) + ss_size + namelen);
-    if(!ca) {
+    if (!ca) {
       Curl_freeaddrinfo(cafirst);
       cafirst = NULL;
       break;
@@ -516,17 +512,17 @@ struct Curl_addrinfo *async_win32_parse_addrinfo(PADDRINFOEXW addrinfo)
     ca->ai_addr = (void*)((char*)ca + sizeof(struct Curl_addrinfo));
     memcpy(ca->ai_addr, ai->ai_addr, ss_size);
 
-    if(namelen) {
+    if (namelen) {
       ca->ai_canonname = (void*)((char*)ca->ai_addr + ss_size);
       memcpy(ca->ai_canonname, canonname, namelen);
     }
 
     /* if the return list is empty, this becomes the first element */
-    if(!cafirst)
+    if (!cafirst)
       cafirst = ca;
 
     /* add this element last in the return list */
-    if(calast)
+    if (calast)
       calast->ai_next = ca;
     calast = ca;
   }
@@ -540,7 +536,7 @@ static bool async_win32_parse_response(struct async_win32_request_ctx* addr_ctx,
 {
   bool result = FALSE;
 
-  if(addrinfo)
+  if (addrinfo)
   {
     addr_ctx->res = async_win32_parse_addrinfo(addrinfo);
     FreeAddrInfoExW(addrinfo);
@@ -563,7 +559,7 @@ static void CALLBACK async_win32_getaddrinfo_cb(DWORD dwError, DWORD dwBytes, LP
   /* this is unused and always 0 */
   (void)dwBytes;
 
-  if(dwError != ERROR_SUCCESS) {
+  if (dwError != ERROR_SUCCESS) {
     addr_ctx->sock_error = (int)dwError;
 
 #ifdef USE_HTTPSRR
@@ -584,17 +580,17 @@ static void CALLBACK async_win32_getaddrinfo_cb(DWORD dwError, DWORD dwBytes, LP
  *
  * Returns FALSE in case of failure, otherwise TRUE.
  */
-static bool async_win32_getaddrinfo(struct Curl_easy *data)
+static bool async_win32_getaddrinfo(struct Curl_easy* data)
 {
-  struct async_win32_ctx *win32 = &data->state.async.win32;
-  struct async_win32_request_ctx *addr_ctx = &win32->request;
+  struct async_win32_ctx* win32 = &data->state.async.win32;
+  struct async_win32_request_ctx* addr_ctx = &win32->request;
   PADDRINFOEXW addrinfo = NULL;
 
   struct timeval* timeout = NULL;
   LPOVERLAPPED overlapped = NULL;
   LPLOOKUPSERVICE_COMPLETION_ROUTINE callback = NULL;
   LPHANDLE handle = NULL;
-  
+
   /* !checksrc! disable ERRNOVAR 1 */
   int err = ENOMEM;
 
@@ -612,17 +608,17 @@ static bool async_win32_getaddrinfo(struct Curl_easy *data)
     NULL, &addr_ctx->hints.basic, &addrinfo,
     timeout, overlapped, callback, handle);
 
-  if(err == WSA_IO_PENDING) {
+  if (err == WSA_IO_PENDING) {
     CURL_TRC_DNS(data, "resolve request started for of %s:%d", hostname, port);
     return TRUE;
   }
 
-  if(err == NO_ERROR) {
+  if (err == NO_ERROR) {
     CURL_TRC_DNS(data, "resolved synchronously for of %s:%d", hostname, port);
-    if (!async_win32_parse_response(addr_ctx, addrinfo)){
-      
+    if (!async_win32_parse_response(addr_ctx, addrinfo)) {
+
     }
-    if(addr_ctx->res) {
+    if (addr_ctx->res) {
       return TRUE;
     }
     err = EAI_MEMORY;
@@ -630,7 +626,7 @@ static bool async_win32_getaddrinfo(struct Curl_easy *data)
 
   addr_ctx->thread_hnd = Curl_thread_create(getaddrinfo_thread, addr_ctx);
 
-  if(addr_ctx->thread_hnd == curl_thread_t_null) {
+  if (addr_ctx->thread_hnd == curl_thread_t_null) {
     /* The thread never started */
     Curl_mutex_release(&addr_ctx->mutx);
     err = errno;
@@ -646,7 +642,7 @@ static bool async_win32_getaddrinfo(struct Curl_easy *data)
   }
 
 #ifdef USE_HTTPSRR_ARES
-  if(async_rr_start(data))
+  if (async_rr_start(data))
     infof(data, "Failed HTTPS RR operation");
 #endif
 
@@ -657,13 +653,13 @@ err_exit:
   return FALSE;
 }
 
-static void async_win32_shutdown(struct Curl_easy *data)
+static void async_win32_shutdown(struct Curl_easy* data)
 {
-  struct async_win32_ctx *win32 = &data->state.async.win32;
-  struct async_win32_request_ctx *addr_ctx = &win32->request;
+  struct async_win32_ctx* win32 = &data->state.async.win32;
+  struct async_win32_request_ctx* addr_ctx = &win32->request;
 
   /* We are no longer interested in wakeups */
-  if(addr_ctx->sock_pair[1] != CURL_SOCKET_BAD) {
+  if (addr_ctx->sock_pair[1] != CURL_SOCKET_BAD) {
     addr_ctx->sock_pair[1] = CURL_SOCKET_BAD;
   }
 
@@ -673,9 +669,9 @@ static void async_win32_shutdown(struct Curl_easy *data)
 /*
  * 'entry' may be NULL and then no data is returned
  */
-static CURLcode asyn_win32_await(struct Curl_easy *data,
-                                 struct async_win32_request_ctx *addr_ctx,
-                                 struct Curl_dns_entry **entry)
+static CURLcode asyn_win32_await(struct Curl_easy* data,
+  struct async_win32_request_ctx* addr_ctx,
+  struct Curl_dns_entry** entry)
 {
   CURLcode result = CURLE_OK;
 
@@ -691,7 +687,7 @@ static CURLcode asyn_win32_await(struct Curl_easy *data,
   async_win32_wait(&addr_ctx->httpsrr.wait_handle);
 #endif
 
-  if(entry) {
+  if (entry) {
     result = Curl_async_is_resolved(data, entry);
     *entry = data->state.async.dns;
   }
@@ -701,16 +697,16 @@ static CURLcode asyn_win32_await(struct Curl_easy *data,
   return result;
 }
 
-void Curl_async_win32_shutdown(struct Curl_easy *data)
+void Curl_async_win32_shutdown(struct Curl_easy* data)
 {
   async_win32_shutdown(data);
 }
 
-void Curl_async_win32_destroy(struct Curl_easy *data)
+void Curl_async_win32_destroy(struct Curl_easy* data)
 {
-  struct async_win32_ctx *win32 = &data->state.async.win32;
+  struct async_win32_ctx* win32 = &data->state.async.win32;
 
-  if(win32->addr) {
+  if (win32->addr) {
     async_win32_shutdown(data);
   }
   async_win32_destroy(data);
@@ -729,11 +725,11 @@ void Curl_async_win32_destroy(struct Curl_easy *data)
  *
  * This is the version for resolves-in-a-thread.
  */
-CURLcode Curl_async_await(struct Curl_easy *data,
-                          struct Curl_dns_entry **entry)
+CURLcode Curl_async_await(struct Curl_easy* data,
+  struct Curl_dns_entry** entry)
 {
-  struct async_win32_request_ctx *win32 = &data->state.async.win32.request;
-  if(win32->addr)
+  struct async_win32_request_ctx* win32 = &data->state.async.win32.request;
+  if (win32->addr)
     return asyn_win32_await(data, win32->addr, entry);
   return CURLE_FAILED_INIT;
 }
@@ -743,31 +739,31 @@ CURLcode Curl_async_await(struct Curl_easy *data,
  * name resolve request has completed. It should also make sure to time-out if
  * the operation seems to take too long.
  */
-CURLcode Curl_async_is_resolved(struct Curl_easy *data,
-                                struct Curl_dns_entry **dns)
+CURLcode Curl_async_is_resolved(struct Curl_easy* data,
+  struct Curl_dns_entry** dns)
 {
-  struct async_win32_ctx *win32 = &data->state.async.win32;
+  struct async_win32_ctx* win32 = &data->state.async.win32;
   bool done = FALSE;
 
   DEBUGASSERT(dns);
   *dns = NULL;
 
-  if(data->state.async.done) {
+  if (data->state.async.done) {
     *dns = data->state.async.dns;
     CURL_TRC_DNS(data, "threaded: is_resolved(), already done, dns=%sfound",
-                 *dns ? "" : "not ");
+      *dns ? "" : "not ");
     return CURLE_OK;
   }
 
   DEBUGASSERT(win32->addr);
-  if(!win32->addr)
+  if (!win32->addr)
     return CURLE_FAILED_INIT;
 
   Curl_mutex_acquire(&win32->addr->mutx);
   done = win32->addr->ref_count == 1;
   Curl_mutex_release(&win32->addr->mutx);
 
-  if(!win32->request.wait_handle
+  if (!win32->request.wait_handle
 #ifdef USE_HTTPSRR
     || !win32->request.wait_handle
 #endif
@@ -775,18 +771,18 @@ CURLcode Curl_async_is_resolved(struct Curl_easy *data,
     /* poll for name lookup done with exponential backoff up to 250ms */
     /* should be fine even if this converts to 32-bit */
     timediff_t elapsed = curlx_timediff(curlx_now(),
-                                        data->progress.t_startsingle);
-    if(elapsed < 0)
+      data->progress.t_startsingle);
+    if (elapsed < 0)
       elapsed = 0;
 
-    if(!win32->addr->poll_interval)
+    if (!win32->addr->poll_interval)
       /* Start at 1ms poll interval */
       win32->addr->poll_interval = 1;
-    else if(elapsed >= win32->addr->interval_end)
+    else if (elapsed >= win32->addr->interval_end)
       /* Back-off exponentially if last interval expired  */
       win32->addr->poll_interval *= 2;
 
-    if(win32->addr->poll_interval > 250)
+    if (win32->addr->poll_interval > 250)
       win32->addr->poll_interval = 250;
 
     win32->addr->interval_end = elapsed + win32->addr->poll_interval;
@@ -799,35 +795,35 @@ CURLcode Curl_async_is_resolved(struct Curl_easy *data,
   data->state.async.done = TRUE;
   Curl_resolv_unlink(data, &data->state.async.dns);
 
-  if(win32->addr->res) {
+  if (win32->addr->res) {
     data->state.async.dns =
       Curl_dnscache_mk_entry(data, win32->addr->res,
-                             data->state.async.hostname, 0,
-                             data->state.async.port, FALSE);
+        data->state.async.hostname, 0,
+        data->state.async.port, FALSE);
     win32->addr->res = NULL;
-    if(!data->state.async.dns)
+    if (!data->state.async.dns)
       result = CURLE_OUT_OF_MEMORY;
 
 #ifdef USE_HTTPSRR_ARES
-if(win32->rr.channel) {
-  result = win32->rr.result;
-  if(!result) {
-    struct Curl_httpsrrinfo* lhrr;
-    lhrr = Curl_httpsrr_dup_move(&win32->rr.hinfo);
-    if(!lhrr)
-      result = CURLE_OUT_OF_MEMORY;
-    else
-      data->state.async.dns->hinfo = lhrr;
-  }
-}
+    if (win32->rr.channel) {
+      result = win32->rr.result;
+      if (!result) {
+        struct Curl_httpsrrinfo* lhrr;
+        lhrr = Curl_httpsrr_dup_move(&win32->rr.hinfo);
+        if (!lhrr)
+          result = CURLE_OUT_OF_MEMORY;
+        else
+          data->state.async.dns->hinfo = lhrr;
+      }
+    }
 #endif
-if(!result && data->state.async.dns)
-result = Curl_dnscache_add(data, data->state.async.dns);
+    if (!result && data->state.async.dns)
+      result = Curl_dnscache_add(data, data->state.async.dns);
   }
 
-  if(!result && !data->state.async.dns)
+  if (!result && !data->state.async.dns)
     result = Curl_resolver_error(data);
-  if(result)
+  if (result)
     Curl_resolv_unlink(data, &data->state.async.dns);
   *dns = data->state.async.dns;
   CURL_TRC_DNS(data, "is_resolved() result=%d, dns=%sfound",
@@ -846,29 +842,29 @@ CURLcode Curl_async_pollset(struct Curl_easy* data, struct easy_pollset* ps)
 #endif
 
 #ifdef USE_HTTPSRR_ARES
-  if(win32->rr.channel) {
+  if (win32->rr.channel) {
     result = Curl_ares_pollset(data, win32->rr.channel, ps);
-    if(result)
+    if (result)
       return result;
   }
 #endif
-  if(!win32->addr)
+  if (!win32->addr)
     return result;
 
 #ifndef CURL_DISABLE_SOCKETPAIR
   /* return read fd to client for polling the DNS resolution status */
-  if(win32->addr->sock_pair[0] != CURL_SOCKET_BAD) {
+  if (win32->addr->sock_pair[0] != CURL_SOCKET_BAD) {
     result = Curl_pollset_add_in(data, ps, win32->addr->sock_pair[0]);
   }
 #else
   {
     timediff_t milli;
     timediff_t ms = curlx_timediff(curlx_now(), win32->addr->start);
-    if(ms < 3)
+    if (ms < 3)
       milli = 0;
-    else if(ms <= 50)
+    else if (ms <= 50)
       milli = ms / 3;
-    else if(ms <= 250)
+    else if (ms <= 250)
       milli = 50;
     else
       milli = 200;
@@ -1025,7 +1021,7 @@ static CURLcode async_win32_setup_ctx(struct Curl_easy* data,
 
     request->servers = calloc(win32->server_cnt, sizeof(ADDRINFO_DNS_SERVER*));
 
-    if(!request->servers)
+    if (!request->servers)
     {
       return CURLE_OUT_OF_MEMORY;
     }
@@ -1089,13 +1085,13 @@ struct Curl_addrinfo* Curl_async_getaddrinfo(struct Curl_easy* data,
   }
 
   /* send a new resolve request */
-  if(!async_win32_getaddrinfo(data, hostname, port, ip_version, &hints.basic, &result))
+  if (!async_win32_getaddrinfo(data, hostname, port, ip_version, &hints.basic, &result))
   {
     failf(data, "async_win32_getaddrinfo() failed to resolve");
     return NULL;
   }
 
-  if(data->state.async.win32.request.wait_handle != ASYNC_SYNCFINISH) {
+  if (data->state.async.win32.request.wait_handle != ASYNC_SYNCFINISH) {
     *waitp = 1; /* expect asynchronous response */
   }
 
